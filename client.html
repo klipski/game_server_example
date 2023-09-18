@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multiplayer Game</title>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const socket = new WebSocket("ws://localhost:8001");
+
+        let playerId;
+        let playerColor;
+        let players = {};
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = "black";
+            ctx.lineWidth = 5;
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+            for (const id in players) {
+                const player = players[id];
+                if (player) {
+                    ctx.fillStyle = player.color;
+                    ctx.fillRect(player.x, player.y, 20, 20);
+                }
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        socket.addEventListener("message", (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === "assigned") {
+                playerId = data.id;
+                playerColor = data.color;
+
+                players[playerId] = { x: 100, y: 100, color: playerColor };
+            } else if (data.type === "update") {
+                players = data.players;
+            }
+        });
+
+        socket.addEventListener("open", () => {
+            requestAnimationFrame(draw);
+
+            window.addEventListener("keydown", (event) => {
+                let dx = 0;
+                let dy = 0;
+
+                switch (event.key) {
+                    case "ArrowUp":
+                        dy = -5;
+                        break;
+                    case "ArrowDown":
+                        dy = 5;
+                        break;
+                    case "ArrowLeft":
+                        dx = -5;
+                        break;
+                    case "ArrowRight":
+                        dx = 5;
+                        break;
+                }
+
+                socket.send(JSON.stringify({ x: (players[playerId]?.x || 0) + dx, y: (players[playerId]?.y || 0) + dy }));
+            });
+        });
+    </script>
+</body>
+</html>
